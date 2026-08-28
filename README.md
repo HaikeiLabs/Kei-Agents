@@ -1,7 +1,5 @@
 # Kei Agents
 
-[![PyPI Version](https://img.shields.io/pypi/v/kei-agents)](https://pypi.org/project/kei-agents/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/kei-agents)](https://pypi.org/project/kei-agents/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/HaikeiLabs/kei-agents/actions/workflows/ci.yaml/badge.svg)](https://github.com/HaikeiLabs/kei-agents/actions/workflows/ci.yaml)
 [![Dependency Review](https://github.com/HaikeiLabs/kei-agents/actions/workflows/security.yaml/badge.svg)](https://github.com/HaikeiLabs/kei-agents/actions/workflows/security.yaml)
@@ -13,6 +11,8 @@ Agent definitions, tools, and prompts for the Kei AI assistant platform.
 ```bash
 pip install kei-agents
 ```
+
+> **Note**: PyPI publication is planned. See the [PyPI Distribution Plan](docs/pypi-distribution-plan.md) for the release timeline.
 
 ## Quick Start
 
@@ -75,6 +75,10 @@ mypy src/agents
 - Dependency review on all PRs
 - See [Security Policy](SECURITY.md)
 
+## Distribution
+
+For details on PyPI distribution, release process, and container registry strategy, see the [PyPI Distribution Plan](docs/pypi-distribution-plan.md).
+
 ## Contributing
 
 Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -88,5 +92,4 @@ MIT License - see [LICENSE](LICENSE).
 ## Links
 
 - [GitHub](https://github.com/HaikeiLabs/kei-agents)
-- [PyPI](https://pypi.org/project/kei-agents/)
 - [Issues](https://github.com/HaikeiLabs/kei-agents/issues)
