@@ -41,5 +41,8 @@ Issues = "https://github.com/HaikeiLabs/kei-agents/issues"
 target-version = "py311"
 
 [tool.mypy]
-python-version = "3.11"
+python_version = "3.11"
 strict = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agents"]
