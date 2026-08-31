@@ -3,7 +3,7 @@
 [![PyPI Version](https://img.shields.io/pypi/v/kei-agents)](https://pypi.org/project/kei-agents/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/kei-agents)](https://pypi.org/project/kei-agents/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/HaikeiLabs/kei-agents/actions/workflows/ci.yaml/badge.svg)](https://github.com/HaikeiLabs/kei-agents/actions/workflows/ci.yaml)
+[![CI](https://github.com/HaikeiLabs/kei-agents/actions/workflows/tests.yaml/badge.svg)](https://github.com/HaikeiLabs/kei-agents/actions/workflows/tests.yaml)
 [![Dependency Review](https://github.com/HaikeiLabs/kei-agents/actions/workflows/security.yaml/badge.svg)](https://github.com/HaikeiLabs/kei-agents/actions/workflows/security.yaml)
 
 Agent definitions, tools, and prompts for the Kei AI assistant platform.
