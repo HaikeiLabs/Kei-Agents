@@ -2,21 +2,42 @@
 
 This package provides:
 - Tool definitions with multi-model format support (OpenAI, Anthropic, Ollama)
-- System prompts and instructions
-- Agent schemas for integration
+- CRM tools for lead management (mock adapter)
+- GitHub tools for issue/PR management (with governance)
+- Permission-based access control
 
 Install: pip install kei-agents
 
 Usage:
     from agents import TOOL_DEFINITIONS, render_tools, ModelFormat
-
-    # Get tools for your model
     tools = render_tools(TOOL_DEFINITIONS, ModelFormat.OPENAI)
 """
 
+from agents.crm import (
+    CRMAdapter,
+    Lead,
+    LeadSource,
+    LeadStatus,
+)
+from agents.github import (
+    GovernanceConfig,
+    MockGitHubAdapter,
+)
+from agents.policy import (
+    AuthorizationResult,
+    PermissionContext,
+    PolicyDecision,
+    PolicyEngine,
+    check_tool_access,
+    create_user_context,
+    filter_accessible_tools,
+)
 from agents.tool_definitions import (
+    ALL_TOOL_DEFINITIONS,
     TOOL_DEFINITIONS,
     ModelFormat,
+    Permission,
+    ToolCategory,
     ToolDefinition,
     ToolParameter,
     detect_model_format,
@@ -33,11 +54,27 @@ from agents.tool_definitions import (
 __version__ = "0.1.0"
 
 __all__ = [
+    "ALL_TOOL_DEFINITIONS",
     "TOOL_DEFINITIONS",
+    "AuthorizationResult",
+    "CRMAdapter",
+    "GovernanceConfig",
+    "Lead",
+    "LeadSource",
+    "LeadStatus",
+    "MockGitHubAdapter",
     "ModelFormat",
+    "Permission",
+    "PermissionContext",
+    "PolicyDecision",
+    "PolicyEngine",
+    "ToolCategory",
     "ToolDefinition",
     "ToolParameter",
+    "check_tool_access",
+    "create_user_context",
     "detect_model_format",
+    "filter_accessible_tools",
     "get_tool_by_name",
     "get_tools_by_category",
     "get_tools_by_permission",
