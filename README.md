@@ -85,6 +85,10 @@ Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 All contributors must be approved by existing maintainers. See [CONTRIBUTORS](CONTRIBUTORS).
 
+### Design Documents
+
+- [npm Distribution Strategy](docs/npm-distribution-strategy.md) - proposal for publishing a JS/TypeScript consumable, plus Go distribution as a separate workstream (not approved)
+
 ## License
 
 MIT License - see [LICENSE](LICENSE).
