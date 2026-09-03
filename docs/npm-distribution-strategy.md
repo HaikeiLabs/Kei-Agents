@@ -1,7 +1,9 @@
 # Kei-Agents npm Distribution Strategy
 
 **Status:** Proposal — not approved, nothing implemented
-**Scope:** Publishing a JavaScript/TypeScript consumable of `kei-agents` to the npm registry
+**Scope:** Publishing a JavaScript/TypeScript consumable of `kei-agents` to the
+npm registry (§1–§10), plus Go distribution as a separate, independently
+sequenced workstream (§11)
 **Audience:** Kei-Agents maintainers (see [CONTRIBUTORS](../CONTRIBUTORS))
 
 ## Summary
@@ -17,6 +19,11 @@ single `npm publish` runs.
 
 **Recommendation: publish a schema-only package (Option B below), or defer.**
 Do not port the Python behavior to TypeScript.
+
+Go is covered in §11. It is **not** part of the npm rollout: Go ships as a
+binary through the module proxy and GitHub Releases, on its own timeline and
+with its own owner. It is specified here to the same depth so it can be
+scheduled independently rather than treated as a loose end.
 
 ## 1. Prerequisite decision: what is the JS/TS package?
 
@@ -372,39 +379,222 @@ supply-chain obligations in exchange for nothing.
 | **Scope creep toward Option C** | Duplicated authorization logic | Requires an explicit documented decision to change §1 |
 | **Consumers expect PyPI parity** | Misleading; bad reports | Package name and README scope it as schemas only (§2) |
 
-## 11. Go: separate binaries, not npm
+## 11. Go distribution: a separate workstream
 
 Go is occasionally raised alongside npm. **Go must not be distributed through
-npm.** They are unrelated problems with unrelated solutions, and conflating them
-produces a worse answer to both.
+npm**, and its distribution is not a sub-task of the npm rollout — it is an
+independent workstream with its own artifact, its own release mechanics, its own
+owner, and its own timeline. This section specifies it to the same depth as
+§2–§10 so it can be scheduled on its own, and so "we'll sort Go out later" does
+not become an implicit dependency on §9.
+
+The two are sequenced independently. Neither blocks the other, and they share no
+pipeline.
+
+### 11.1 Why not npm
 
 **Go's distribution model is the module proxy.** `go install` and `go get`
 resolve from the source repository via `proxy.golang.org`, with checksum
 verification through `sum.golang.org`. There is no publish step and no registry
-upload — the version tag in the repository *is* the release. Wrapping a Go
-binary in an npm package discards that model and replaces it with a
-`postinstall` script that downloads a platform-specific binary, which is exactly
-the pattern security-conscious consumers disable and enterprise proxies block.
+upload — the version tag in the repository *is* the release.
 
-**If Kei ships Go components, distribute them as:**
+Wrapping a Go binary in an npm package discards that and replaces it with a
+`postinstall` script that downloads a platform-specific binary at install time.
+That means platform detection in `postinstall`, a per-platform artifact matrix
+resolved at install rather than build, an install-time network dependency, and
+every Go release becoming an npm release. It is the pattern security-conscious
+consumers disable with `--ignore-scripts` and enterprise proxies block outright.
+It would also add an install-time network fetch to a package tree that §2
+deliberately keeps at zero runtime dependencies.
 
-- **Go modules** for library consumption, versioned by `vX.Y.Z` git tags, following
-  Go's semantic import versioning (a `v2+` major requires a `/v2` module path
-  suffix — a real constraint, distinct from the npm SemVer in §3).
-- **Signed, platform-specific binaries** attached to GitHub Releases, with
-  checksums and signatures, for CLI consumption. The existing build workflow
-  already publishes release artifacts, so this extends a pattern the repo has.
-- **Container images**, if the consumption model is a service rather than a CLI.
+### 11.2 Prerequisite decision: is there a Go component at all?
 
-**A Go binary in an npm package would mean:** platform detection in
-`postinstall`, a per-platform artifact matrix, binary download over the network
-at install time, and every Go release becoming an npm release. It couples two
-independent release cadences and adds an install-time network dependency to a
-package tree that is otherwise pure data.
+**As with §1, this blocks everything else in this section.** There is no Go code
+in this repository today. This section is written pre-emptively so that if a Go
+component appears, the distribution question is already answered — not to argue
+that one should exist.
 
-**Ownership note:** Go binary signing and release infrastructure is a separate
-workstream from §8, with its own owner. It should not be folded into the npm
-rollout in §9.
+The answer also determines *which* of the artifacts below are in scope, because
+the consumption model drives the artifact:
+
+| Consumption model | Artifact | In scope |
+|---|---|---|
+| Imported as a Go library | Go module (tag only) | §11.3 |
+| Run as a CLI by humans or CI | Signed platform binaries | §11.4 |
+| Run as a long-lived service | Container image | §11.5 |
+
+These are not mutually exclusive, but each one added is a distinct release
+surface with its own tests, signing, and ownership. Adopt the minimum set that
+serves a named consumer, on the same principle as §9's stop condition.
+
+### 11.3 Go modules (library consumption)
+
+**Artifact:** the source repository itself at a `vX.Y.Z` git tag. Nothing is
+uploaded; the proxy fetches and caches from the tag.
+
+**Requirements:**
+
+- A `go.mod` whose module path matches the repository path exactly, or the
+  proxy cannot resolve it.
+- **Semantic import versioning.** A `v2` or later major requires a `/v2` suffix
+  in both the module path and every consumer import. This is a real constraint
+  with no npm analogue, and it is distinct from the SemVer in §3 — a Go major
+  bump is a source-level change to the import path, not just a version number.
+- Tags are effectively immutable: `proxy.golang.org` and `sum.golang.org` cache
+  the tag content and its checksum on first fetch. **Retagging is not a
+  rollback** (see §11.8).
+- If a Go module ships from this repository, its tags must not collide with the
+  `v*` tags that already trigger `build.yaml`. Either prefix Go tags with a
+  subdirectory path (`go/vX.Y.Z` for a nested module) or move the Go component
+  to its own repository. **This is a concrete conflict with the existing release
+  workflow and must be resolved before the first Go tag is pushed.**
+
+### 11.4 Signed binaries (CLI consumption)
+
+**Artifact:** platform-specific binaries attached to a GitHub Release, with
+checksums and signatures. The existing `build.yaml` already publishes release
+artifacts, so this extends a pattern the repo has rather than inventing one.
+
+**Platform matrix.** Start at the minimum that serves a named consumer and grow
+on request — every added platform is a build, a test, and a signing obligation:
+
+| OS / Arch | Priority |
+|---|---|
+| `linux/amd64`, `linux/arm64` | Required (CI and containers) |
+| `darwin/arm64` | Required (developer machines) |
+| `darwin/amd64` | Include while Intel Macs are supported |
+| `windows/amd64` | Only on request |
+
+**Build requirements:**
+
+- **Reproducible builds:** `CGO_ENABLED=0`, pinned Go toolchain version,
+  `-trimpath`, and version metadata injected via `-ldflags` rather than
+  committed to source. Static binaries avoid a glibc-compatibility support
+  burden.
+- **Go supports the two most recent major releases.** Pin the toolchain, and
+  treat a toolchain bump as a release-note item since it can change the minimum
+  supported platform set.
+
+**Integrity requirements** — the binary equivalent of §6, and the reason this is
+its own workstream:
+
+- A `checksums.txt` covering every artifact, with the checksum file itself
+  signed.
+- **Keyless signing via Sigstore/cosign with GitHub OIDC**, consistent with the
+  preference for OIDC over long-lived credentials in §6. No long-lived signing
+  key to store, rotate, or leak.
+- **SLSA build provenance** attesting the source commit and build workflow,
+  matching the intent of npm provenance in §6.
+- Publish the verification command in the README. **An unverifiable signature is
+  decorative** — if consumers are not told how to check it, signing buys nothing.
+- Build and sign on the `kei-agents-runner` private runner behind the `release`
+  environment, matching the existing PyPI job.
+
+**Release tests**, in the spirit of §5 — every check runs against the *published
+artifact*, not the build tree:
+
+1. Every matrix entry produced a binary; fail on a missing platform.
+2. Each binary executes and reports the expected version (`--version` matches
+   the tag). This catches the ldflags injection silently failing.
+3. Checksums verify against the published file.
+4. Signature verification succeeds using only public inputs, exactly as a
+   consumer would run it.
+5. Post-release: download from the Release URL in a clean container and re-run
+   1–4, since upload can corrupt or omit artifacts.
+
+### 11.5 Container images (service consumption)
+
+If the consumption model is a long-lived service rather than a CLI:
+
+- Publish to GitHub Container Registry, tagged with both the version and the
+  commit SHA.
+- Multi-arch manifests for `linux/amd64` and `linux/arm64`.
+- Sign with cosign and attach an SBOM.
+- Minimal base image, since a static Go binary needs no distribution userland.
+
+Adopt this **only** if a named consumer runs Kei as a service. It is a third
+release surface and should not be built speculatively.
+
+### 11.6 Versioning
+
+**Go versioning is independent of §3.** The npm/PyPI lockstep in §3 exists
+because those two artifacts are generated from one source. A Go component is
+separate code with a separate cadence, and forcing it into the same version line
+would produce empty releases in both directions for no benefit.
+
+- Standard SemVer on `vX.Y.Z` tags, with the `/vN` module path suffix required
+  at `v2+` (§11.3).
+- Pre-1.0 signals instability, as in §3.
+- If a Go component ever consumes the tool definitions, it consumes a
+  *versioned* artifact and declares which version it supports. It must not
+  re-implement the renderers — that would be a third implementation to keep in
+  sync, and the drift risk in §10 applies with equal force.
+
+### 11.7 Ownership
+
+Per §8, this is a **separate workstream with its own owner**, not an extension
+of npm ownership. The skills do not overlap: npm publishing is registry and
+token management, while Go release engineering is cross-compilation, signing,
+and artifact integrity.
+
+| Responsibility | Owner |
+|---|---|
+| Go release pipeline and toolchain pinning | Named owner + backup |
+| Signing infrastructure and verification docs | Same owner |
+| Platform matrix decisions | Same owner |
+| Release approvals | Existing maintainers via `release` environment |
+
+The no-single-point-of-failure rule from §8 applies unchanged: at least two
+people can cut and sign a Go release.
+
+### 11.8 Rollback
+
+The failure mode is the inverse of §7's. npm's problem is that unpublishing is
+restricted; Go's problem is that **the module proxy has already cached the tag
+and its checksum, permanently**.
+
+- **Never retag.** Moving a tag after `proxy.golang.org` has fetched it produces
+  a checksum mismatch that breaks builds for anyone who cached the original —
+  a worse outcome than the bug being fixed.
+- **Roll forward** with a new patch tag. As in §7, this is the actual
+  remediation path.
+- `go mod` **retract** directives mark a bad version in the module's own
+  `go.mod`, which is Go's native equivalent of `npm deprecate`. Consumers see
+  the retraction on upgrade.
+- For binaries, **delete or clearly mark the GitHub Release** and publish a fixed
+  one. Unlike the proxy, Release assets can be removed — but assume they have
+  already been downloaded and mirrored.
+- **Rehearse it**, per §7. An untested rollback is a document, not a capability.
+
+### 11.9 Rollout
+
+Phased like §9, and **explicitly not gated on the npm phases**:
+
+- **Phase G0 — Decision.** Is there a Go component, and which consumption models
+  from §11.2? Resolve the tag-collision question in §11.3. *Exit: written
+  decision; named consumer identified.*
+- **Phase G1 — Unsigned prerelease.** Build the matrix, tag a `v0.x`, verify
+  §11.4 tests 1–3. *Exit: all platforms build and self-report the right version.*
+- **Phase G2 — Signing.** Add cosign and provenance; publish verification
+  instructions. *Exit: a maintainer verifies a signature from a clean machine
+  using only the public docs.*
+- **Phase G3 — Public.** Announce. *Exit: two consecutive releases with no
+  manual intervention.*
+
+**Stop condition, as in §9:** no named consumer means no Go distribution. Signed
+release infrastructure that nobody consumes is pure maintenance cost with a
+standing supply-chain surface.
+
+### 11.10 Risks
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Tag collision with existing `v*` release triggers | Go tag fires the Python publish workflow | Resolve before the first tag (§11.3) |
+| Retagging after proxy caching | Checksum mismatch breaks consumer builds | Never retag; roll forward and retract (§11.8) |
+| Signing exists but nobody verifies | Security theater | Publish and test the verification command (§11.4) |
+| Platform matrix creep | Every platform is a build, test, and signing cost | Add only on named request (§11.4) |
+| Renderer logic reimplemented in Go | A *third* implementation to keep in sync | Consume the versioned artifact; never re-implement (§11.6) |
+| Folded into the npm workstream | Neither ships well; ownership blurs | Separate owner, separate rollout (§11.7, §11.9) |
 
 ## Open questions
 
@@ -417,3 +607,9 @@ rollout in §9.
 6. Does version lockstep (§3) hold, or does the team prefer independent lines
    with a compatibility matrix?
 7. Are there Go components planned at all, or is §11 pre-emptive?
+   *(Blocks §11 — §11.2, §11.9 Phase G0)*
+8. If a Go module ships from this repository, how are its tags kept from
+   colliding with the `v*` tags that already trigger `build.yaml` — path-prefixed
+   tags or a separate repository? *(Blocks the first Go tag — §11.3)*
+9. Who owns the Go release and signing workstream? It is deliberately not the
+   npm owners from §8. *(§11.7)*

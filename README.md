@@ -83,7 +83,7 @@ All contributors must be approved by existing maintainers. See [CONTRIBUTORS](CO
 
 ### Design Documents
 
-- [npm Distribution Strategy](docs/npm-distribution-strategy.md) - proposal for publishing a JS/TypeScript consumable (not approved)
+- [npm Distribution Strategy](docs/npm-distribution-strategy.md) - proposal for publishing a JS/TypeScript consumable, plus Go distribution as a separate workstream (not approved)
 
 ## License
 
