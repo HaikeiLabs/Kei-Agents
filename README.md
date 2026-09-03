@@ -81,6 +81,10 @@ Contributions welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 All contributors must be approved by existing maintainers. See [CONTRIBUTORS](CONTRIBUTORS).
 
+### Design Documents
+
+- [npm Distribution Strategy](docs/npm-distribution-strategy.md) - proposal for publishing a JS/TypeScript consumable (not approved)
+
 ## License
 
 MIT License - see [LICENSE](LICENSE).
