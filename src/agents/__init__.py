@@ -37,6 +37,7 @@ from agents.tool_definitions import (
     TOOL_DEFINITIONS,
     ModelFormat,
     Permission,
+    ToolBinding,
     ToolCategory,
     ToolDefinition,
     ToolParameter,
@@ -49,6 +50,7 @@ from agents.tool_definitions import (
     render_ollama_tools,
     render_openai_tools,
     render_tools,
+    validate_tool_definitions,
 )
 
 __version__ = "0.1.0"
@@ -68,6 +70,7 @@ __all__ = [
     "PermissionContext",
     "PolicyDecision",
     "PolicyEngine",
+    "ToolBinding",
     "ToolCategory",
     "ToolDefinition",
     "ToolParameter",
@@ -83,4 +86,5 @@ __all__ = [
     "render_ollama_tools",
     "render_openai_tools",
     "render_tools",
+    "validate_tool_definitions",
 ]
