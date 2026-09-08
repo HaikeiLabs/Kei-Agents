@@ -6,6 +6,29 @@
 
 Agent definitions, tools, and prompts for the Kei AI assistant platform.
 
+## Architecture
+
+This repository defines agent capabilities/tool schemas and semantic mappings
+only. Provider execution and customer data retrieval happen in the
+tenant-side distributed proxy; Kei is a metadata catalog and ABAC is a policy
+decision point.
+
+- **Tool schemas and semantic mappings**: This repository owns agent
+  capabilities, tool definitions, and semantic mappings between them.
+- **Connector bindings are non-secret routing metadata**: Bindings reference
+  credentials and endpoints by opaque identifiers; they never carry credential
+  material.
+- **Provider execution is tenant-side**: Provider execution and customer data
+  retrieval happen in the tenant-side distributed proxy, never in Kei or ABAC.
+- **ABAC is metadata/policy only**: ABAC receives metadata/policy requests
+  only and never customer payloads, results, or credentials.
+- **Writes are agent action tools**: GitHub, CRM, and Linear writes are agent
+  action tools executed by the agent harness, not ABAC connector capabilities.
+
+Do not add provider clients or credential resolution to this repository. This
+is a docs-only repository; see [CONTRIBUTING.md](CONTRIBUTING.md) and
+[AGENTS.md](AGENTS.md).
+
 ## Installation
 
 ```bash

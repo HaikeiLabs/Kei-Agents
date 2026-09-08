@@ -2,6 +2,17 @@
 
 We welcome contributions! Please follow these guidelines.
 
+## Docs-only Repository
+
+This is a docs-only repository: it defines agent capabilities/tool schemas and
+semantic mappings, and must never add provider clients or credential
+resolution. Provider execution and customer data retrieval happen in the
+tenant-side distributed proxy; ABAC is a policy decision point only. Before
+editing architecture or contracts documentation, follow the instructions in
+[AGENTS.md](AGENTS.md) (search the wiki first, read the canonical tenant-side
+proxy architecture, coordinate via the wiki, and do not duplicate shared
+contracts or migrations).
+
 ## Getting Started
 
 1. Fork the repository
