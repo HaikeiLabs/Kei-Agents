@@ -72,6 +72,32 @@ tools = render_tools(TOOL_DEFINITIONS, "gpt-4")
 
 See `src/agents/tool_definitions.py` for full list.
 
+### Governed Connector Read Schemas
+
+Provider-neutral, schema-only read capabilities for governed connectors
+(GitHub, Linear, Google Drive/Docs, S3, http_api/CRM). Each schema expresses a
+capability/resource/action binding and a delegated-context contract; it carries
+no credentials, arbitrary URLs, tenant identifiers, or handlers — execution is
+delegated to the tenant-side distributed proxy. See
+[docs/connector-tool-schemas.md](docs/connector-tool-schemas.md).
+
+| Tool | Connector | Resource | Permission |
+|------|-----------|----------|------------|
+| github.get_repository | github | repository | github_read |
+| github.get_issue | github | issues | github_read |
+| github.get_pull_request | github | pull_requests | github_read |
+| linear.list_issues | linear | issues | linear_read |
+| linear.get_issue | linear | issues | linear_read |
+| linear.list_projects | linear | projects | linear_read |
+| drive.list_files | drive | files | drive_read |
+| drive.get_file | drive | files | drive_read |
+| docs.get_document | drive | documents | drive_read |
+| s3.list_objects | s3 | objects | s3_read |
+| s3.get_object | s3 | objects | s3_read |
+| s3.get_object_metadata | s3 | objects | s3_read |
+| http_api.list_records | http_api | records | http_api_read |
+| http_api.get_record | http_api | records | http_api_read |
+
 ## Development
 
 ```bash

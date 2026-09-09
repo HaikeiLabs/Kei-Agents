@@ -2,6 +2,8 @@
 
 This package provides:
 - Tool definitions with multi-model format support (OpenAI, Anthropic, Ollama)
+- Provider-neutral read schemas for governed connectors (GitHub, Linear,
+  Google Drive/Docs, S3, http_api/CRM)
 - CRM tools for lead management (mock adapter)
 - GitHub tools for issue/PR management (with governance)
 - Permission-based access control
@@ -55,8 +57,25 @@ from agents.tool_definitions import (
 
 __version__ = "0.1.0"
 
+# Imported after tool_definitions so its bottom-of-module import of this
+# package resolves without a circular import.
+from agents.connectors import (
+    CONNECTOR_READ_TOOL_DEFINITIONS,
+    DRIVE_READ_TOOL_DEFINITIONS,
+    GITHUB_READ_TOOL_DEFINITIONS,
+    HTTP_API_READ_TOOL_DEFINITIONS,
+    LINEAR_READ_TOOL_DEFINITIONS,
+    S3_READ_TOOL_DEFINITIONS,
+)
+
 __all__ = [
     "ALL_TOOL_DEFINITIONS",
+    "CONNECTOR_READ_TOOL_DEFINITIONS",
+    "DRIVE_READ_TOOL_DEFINITIONS",
+    "GITHUB_READ_TOOL_DEFINITIONS",
+    "HTTP_API_READ_TOOL_DEFINITIONS",
+    "LINEAR_READ_TOOL_DEFINITIONS",
+    "S3_READ_TOOL_DEFINITIONS",
     "TOOL_DEFINITIONS",
     "AuthorizationResult",
     "CRMAdapter",
