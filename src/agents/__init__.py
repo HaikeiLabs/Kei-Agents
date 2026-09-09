@@ -55,9 +55,11 @@ from agents.tool_definitions import (
     validate_tool_definitions,
 )
 
+__version__ = "0.1.0"
+
 # Imported after tool_definitions so its bottom-of-module import of this
 # package resolves without a circular import.
-from agents.connectors import (  # noqa: E402
+from agents.connectors import (
     CONNECTOR_READ_TOOL_DEFINITIONS,
     DRIVE_READ_TOOL_DEFINITIONS,
     GITHUB_READ_TOOL_DEFINITIONS,
@@ -65,8 +67,6 @@ from agents.connectors import (  # noqa: E402
     LINEAR_READ_TOOL_DEFINITIONS,
     S3_READ_TOOL_DEFINITIONS,
 )
-
-__version__ = "0.1.0"
 
 __all__ = [
     "ALL_TOOL_DEFINITIONS",

@@ -644,9 +644,9 @@ def _unique_tools(*collections: list[ToolDefinition]) -> list[ToolDefinition]:
 
 # Imported at module bottom to break the circular import: the connector/crm/
 # github tool modules import the types defined above from this module.
-from agents.connectors import CONNECTOR_READ_TOOL_DEFINITIONS  # noqa: E402
-from agents.crm.tools import CRM_TOOL_DEFINITIONS  # noqa: E402
-from agents.github.tools import GITHUB_TOOL_DEFINITIONS  # noqa: E402
+from agents.connectors import CONNECTOR_READ_TOOL_DEFINITIONS
+from agents.crm.tools import CRM_TOOL_DEFINITIONS
+from agents.github.tools import GITHUB_TOOL_DEFINITIONS
 
 ALL_TOOL_DEFINITIONS = _unique_tools(
     TOOL_DEFINITIONS,
