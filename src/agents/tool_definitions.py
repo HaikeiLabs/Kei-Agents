@@ -46,6 +46,10 @@ class Permission(str, Enum):
     GITHUB_WRITE = "github_write"
     CRM_READ = "crm_read"
     CRM_WRITE = "crm_write"
+    LINEAR_READ = "linear_read"
+    DRIVE_READ = "drive_read"
+    S3_READ = "s3_read"
+    HTTP_API_READ = "http_api_read"
 
 
 class ToolCategory(str, Enum):
@@ -56,6 +60,10 @@ class ToolCategory(str, Enum):
     GITHUB = "github"
     CRM = "crm"
     ENTERTAINMENT = "entertainment"
+    LINEAR = "linear"
+    DRIVE = "drive"
+    S3 = "s3"
+    HTTP_API = "http_api"
 
 
 @dataclass
@@ -77,12 +85,16 @@ class ToolBinding:
     ``connector_id`` references ``abac.connection_presets.id`` in Kei. The
     ``config`` holds non-secret routing hints only and is consumed by the
     tenant-side proxy, which resolves bindings/auth and invokes provider
-    adapters. This type never carries secrets, credentials, provider clients,
-    or credential-resolution logic.
+    adapters. ``delegated_context`` lists the non-secret field names the
+    tenant-side proxy supplies at invocation (tenant/resource/region scoping);
+    the agent never provides them, so they must not appear as tool parameters.
+    This type never carries secrets, credentials, provider clients, or
+    credential-resolution logic.
     """
 
     connector_id: str
     config: dict[str, Any] = field(default_factory=dict)
+    delegated_context: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -493,6 +505,18 @@ _SECRET_VALUE_HINTS = (
     "bearer",
     "sk-",
 )
+_FIELD_RE = re.compile(r"^[a-z][a-z0-9_]*$")
+_URL_VALUE_RE = re.compile(r"://")
+_URL_KEY_HINTS = ("url", "endpoint", "base_url", "host", "api_url", "webhook")
+_TENANT_IDENTIFIER_HINTS = (
+    "tenant_id",
+    "tenant",
+    "account_id",
+    "customer_id",
+    "organization_id",
+    "org_id",
+)
+_READ_PERMISSION_SUFFIX = "_read"
 
 
 def _validate_binding(tool: ToolDefinition) -> list[str]:
@@ -510,12 +534,35 @@ def _validate_binding(tool: ToolDefinition) -> list[str]:
                 f"{prefix}.config contains secret-looking key {key!r}; "
                 "bindings must be non-secret routing metadata"
             )
-        if isinstance(value, str) and any(
-            hint in value.lower() for hint in _SECRET_VALUE_HINTS
-        ):
+        if any(hint in lower_key for hint in _URL_KEY_HINTS):
             violations.append(
-                f"{prefix}.config value for {key!r} looks like a secret; "
-                "bindings must be non-secret routing metadata"
+                f"{prefix}.config key {key!r} looks like a URL/endpoint; "
+                "endpoints are resolved from the governed connection preset, "
+                "never embedded in routing metadata"
+            )
+        if isinstance(value, str):
+            if _URL_VALUE_RE.search(value):
+                violations.append(
+                    f"{prefix}.config value for {key!r} looks like a URL; "
+                    "endpoints are resolved from the governed connection preset, "
+                    "never embedded in routing metadata"
+                )
+            if any(hint in value.lower() for hint in _SECRET_VALUE_HINTS):
+                violations.append(
+                    f"{prefix}.config value for {key!r} looks like a secret; "
+                    "bindings must be non-secret routing metadata"
+                )
+    if len(set(binding.delegated_context)) != len(binding.delegated_context):
+        violations.append(f"{prefix}.delegated_context contains duplicates")
+    for name in binding.delegated_context:
+        if not _FIELD_RE.fullmatch(name):
+            violations.append(
+                f"{prefix}.delegated_context contains invalid field name {name!r}"
+            )
+        if any(hint in name.lower() for hint in _SECRET_KEY_HINTS):
+            violations.append(
+                f"{prefix}.delegated_context field {name!r} looks like a secret; "
+                "delegated context carries no secret material"
             )
     return violations
 
@@ -548,9 +595,36 @@ def validate_tool_definitions(tools: list[ToolDefinition]) -> list[str]:
             violations.append(f"{tool.name}: invalid category {tool.category!r}")
         if tool.service and not _SERVICE_RE.fullmatch(tool.service):
             violations.append(f"{tool.name}: invalid service {tool.service!r}")
+        is_connector_read = (
+            tool.binding is not None
+            and isinstance(tool.permission, Permission)
+            and tool.permission.value.endswith(_READ_PERMISSION_SUFFIX)
+        )
+        if is_connector_read:
+            if tool.handler is not None:
+                violations.append(
+                    f"{tool.name}: governed connector read tools must not declare "
+                    "a handler; execution is delegated to the tenant-side proxy"
+                )
+            if not tool.service:
+                violations.append(
+                    f"{tool.name}: governed connector read tools must declare a service"
+                )
+        delegated = set(tool.binding.delegated_context) if tool.binding else set()
         for param in _tool_parameters(tool):
             if not param.name:
                 violations.append(f"{tool.name}: parameter with an empty name")
+            if param.name in delegated:
+                violations.append(
+                    f"{tool.name}: parameter {param.name!r} collides with a "
+                    "delegated context field; delegated fields are resolved by "
+                    "the tenant-side proxy, never supplied by the agent"
+                )
+            if is_connector_read and param.name in _TENANT_IDENTIFIER_HINTS:
+                violations.append(
+                    f"{tool.name}: parameter {param.name!r} looks like a tenant "
+                    "identifier; tenant context is delegated, never agent-chosen"
+                )
         violations.extend(_validate_binding(tool))
     return violations
 
@@ -568,11 +642,15 @@ def _unique_tools(*collections: list[ToolDefinition]) -> list[ToolDefinition]:
     return result
 
 
-from agents.crm.tools import CRM_TOOL_DEFINITIONS
-from agents.github.tools import GITHUB_TOOL_DEFINITIONS
+# Imported at module bottom to break the circular import: the connector/crm/
+# github tool modules import the types defined above from this module.
+from agents.connectors import CONNECTOR_READ_TOOL_DEFINITIONS  # noqa: E402
+from agents.crm.tools import CRM_TOOL_DEFINITIONS  # noqa: E402
+from agents.github.tools import GITHUB_TOOL_DEFINITIONS  # noqa: E402
 
 ALL_TOOL_DEFINITIONS = _unique_tools(
     TOOL_DEFINITIONS,
+    CONNECTOR_READ_TOOL_DEFINITIONS,
     CRM_TOOL_DEFINITIONS,
     GITHUB_TOOL_DEFINITIONS,
 )
@@ -580,6 +658,7 @@ ALL_TOOL_DEFINITIONS = _unique_tools(
 
 __all__ = [
     "ALL_TOOL_DEFINITIONS",
+    "CONNECTOR_READ_TOOL_DEFINITIONS",
     "TOOL_DEFINITIONS",
     "ModelFormat",
     "Permission",
