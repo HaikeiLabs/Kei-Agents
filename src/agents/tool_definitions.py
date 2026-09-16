@@ -50,6 +50,7 @@ class Permission(str, Enum):
     DRIVE_READ = "drive_read"
     S3_READ = "s3_read"
     HTTP_API_READ = "http_api_read"
+    NOTION_READ = "notion_read"
 
 
 class ToolCategory(str, Enum):
@@ -64,6 +65,7 @@ class ToolCategory(str, Enum):
     DRIVE = "drive"
     S3 = "s3"
     HTTP_API = "http_api"
+    NOTION = "notion"
 
 
 @dataclass

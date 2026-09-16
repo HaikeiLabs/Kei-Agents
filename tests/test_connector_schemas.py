@@ -30,6 +30,10 @@ CONNECTOR_NAMES = {
     "s3.get_object_metadata",
     "http_api.list_records",
     "http_api.get_record",
+    "notion.list_pages",
+    "notion.get_page",
+    "notion.list_databases",
+    "notion.get_database",
 }
 
 READ_PERMISSIONS = {
@@ -38,6 +42,7 @@ READ_PERMISSIONS = {
     Permission.DRIVE_READ,
     Permission.S3_READ,
     Permission.HTTP_API_READ,
+    Permission.NOTION_READ,
 }
 
 CATEGORIES = {
@@ -46,6 +51,7 @@ CATEGORIES = {
     ToolCategory.DRIVE,
     ToolCategory.S3,
     ToolCategory.HTTP_API,
+    ToolCategory.NOTION,
 }
 
 
