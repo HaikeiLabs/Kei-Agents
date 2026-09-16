@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from agents.workflows.support import (
+    SUPPORT_WORKFLOW,
     ApprovalGate,
     EscalationRule,
     FailureState,
     RedactionRule,
     ResourceMapping,
-    SUPPORT_WORKFLOW,
     SupportWorkflow,
     WorkflowStep,
     validate_support_workflow,

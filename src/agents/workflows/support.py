@@ -672,12 +672,15 @@ def validate_support_workflow(workflow: SupportWorkflow) -> list[str]:
                 f"failure_state for {fs.step_name!r}: invalid strategy "
                 f"{fs.on_failure!r}"
             )
-        if fs.on_failure == _FALLBACK and fs.fallback_step:
-            if fs.fallback_step not in step_names:
-                violations.append(
-                    f"failure_state for {fs.step_name!r}: fallback_step "
-                    f"{fs.fallback_step!r} is not a known step"
-                )
+        if (
+            fs.on_failure == _FALLBACK
+            and fs.fallback_step
+            and fs.fallback_step not in step_names
+        ):
+            violations.append(
+                f"failure_state for {fs.step_name!r}: fallback_step "
+                f"{fs.fallback_step!r} is not a known step"
+            )
 
     for rm in workflow.resource_mappings:
         if rm.connector not in _CONNECTORS:
@@ -718,12 +721,12 @@ def validate_support_workflow(workflow: SupportWorkflow) -> list[str]:
 
 
 __all__ = [
+    "SUPPORT_WORKFLOW",
     "ApprovalGate",
     "EscalationRule",
     "FailureState",
     "RedactionRule",
     "ResourceMapping",
-    "SUPPORT_WORKFLOW",
     "SupportWorkflow",
     "WorkflowStep",
     "validate_support_workflow",
