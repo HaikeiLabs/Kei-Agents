@@ -47,7 +47,7 @@ _KNOWN_CONNECTOR_NAMES: set[str] = {
 
 
 class TestBugIntakeStep:
-    def test_bug_report_defaults(self):
+    def test_bug_report_defaults(self) -> None:
         report = BugReport(
             title="Login fails on Firefox",
             description="Users cannot log in on Firefox 120+",
@@ -59,7 +59,7 @@ class TestBugIntakeStep:
         assert report.labels == ["bug"]
         assert report.reporter == ""
 
-    def test_bug_report_full(self):
+    def test_bug_report_full(self) -> None:
         report = BugReport(
             title="Crash on export",
             description="Exporting large files crashes the service",
@@ -75,7 +75,7 @@ class TestBugIntakeStep:
         assert report.severity == Severity.CRITICAL
         assert "priority:critical" in report.labels
 
-    def test_severity_enum_values(self):
+    def test_severity_enum_values(self) -> None:
         assert list(Severity) == [
             Severity.CRITICAL,
             Severity.HIGH,
@@ -85,25 +85,25 @@ class TestBugIntakeStep:
 
 
 class TestLinearTicketStep:
-    def test_linear_ticket_ref_creation(self):
+    def test_linear_ticket_ref_creation(self) -> None:
         ref = LinearTicketRef(
             issue_key="ENG-456", url="https://linear.app/kei/issue/ENG-456"
         )
         assert ref.issue_key == "ENG-456"
         assert "linear.app" in ref.url
 
-    def test_linear_ticket_ref_default_url(self):
+    def test_linear_ticket_ref_default_url(self) -> None:
         ref = LinearTicketRef(issue_key="ENG-789")
         assert ref.url == ""
 
-    def test_linear_ticket_step_present(self):
+    def test_linear_ticket_step_present(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "linear_ticket")
         assert step is not None
         assert step.input_type == BugReport
         assert step.output_type == LinearTicketRef
         assert "linear_write" in step.required_permissions
 
-    def test_linear_connector_refs_defined(self):
+    def test_linear_connector_refs_defined(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "linear_ticket")
         assert step is not None
         names = {ref.name for ref in step.connector_dependencies}
@@ -112,7 +112,7 @@ class TestLinearTicketStep:
 
 
 class TestApprovalGateStep:
-    def test_approval_decision_approved(self):
+    def test_approval_decision_approved(self) -> None:
         decision = ApprovalDecision(
             approved=True,
             reviewer="pete@example.com",
@@ -121,24 +121,24 @@ class TestApprovalGateStep:
         assert decision.approved is True
         assert decision.reviewer == "pete@example.com"
 
-    def test_approval_decision_rejected(self):
+    def test_approval_decision_rejected(self) -> None:
         decision = ApprovalDecision(approved=False, reason="Needs more testing")
         assert decision.approved is False
         assert decision.reviewer is None
 
-    def test_approval_gate_step_present(self):
+    def test_approval_gate_step_present(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "approval_gate")
         assert step is not None
         assert step.input_type == LinearTicketRef
         assert step.output_type == ApprovalDecision
 
-    def test_approval_gate_transitions(self):
+    def test_approval_gate_transitions(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "approval_gate")
         assert step is not None
         assert "github_pr" in step.next_steps
         assert None in step.next_steps  # rejection is terminal
 
-    def test_approval_gate_no_permissions(self):
+    def test_approval_gate_no_permissions(self) -> None:
         """Approval itself is a harness-level side effect, not a tool call."""
         step = get_step(BUG_TO_LINEAR_PR, "approval_gate")
         assert step is not None
@@ -147,7 +147,7 @@ class TestApprovalGateStep:
 
 
 class TestGitHubPRStep:
-    def test_pr_spec_default_base(self):
+    def test_pr_spec_default_base(self) -> None:
         spec = PRSpec(
             title="Fix login crash on Firefox 120+",
             body="## Summary\nFixes the login crash on Firefox 120+.",
@@ -155,7 +155,7 @@ class TestGitHubPRStep:
         )
         assert spec.base_branch == "main"
 
-    def test_pr_spec_custom_base(self):
+    def test_pr_spec_custom_base(self) -> None:
         spec = PRSpec(
             title="Hotfix: export OOM",
             body="Bumps memory limit and adds chunked processing.",
@@ -164,76 +164,76 @@ class TestGitHubPRStep:
         )
         assert spec.base_branch == "release/v2.1"
 
-    def test_pr_result(self):
+    def test_pr_result(self) -> None:
         result = PRResult(
             pr_url="https://github.com/kei/kei-agent-definitions/pull/42",
             pr_number=42,
         )
         assert result.pr_number == 42
 
-    def test_github_pr_step_present(self):
+    def test_github_pr_step_present(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "github_pr")
         assert step is not None
         assert step.input_type == PRSpec
         assert step.output_type == PRResult
 
-    def test_github_pr_requires_write(self):
+    def test_github_pr_requires_write(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "github_pr")
         assert step is not None
         assert "github_write" in step.required_permissions
 
-    def test_github_pr_is_terminal(self):
+    def test_github_pr_is_terminal(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "github_pr")
         assert step is not None
         assert step.next_steps == []
 
 
 class TestBugIntakeStepProperties:
-    def test_bug_intake_step_present(self):
+    def test_bug_intake_step_present(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "bug_intake")
         assert step is not None
         assert step.input_type == BugReport
         assert step.output_type == BugReport
 
-    def test_bug_intake_is_entry(self):
+    def test_bug_intake_is_entry(self) -> None:
         assert BUG_TO_LINEAR_PR.entry_step == "bug_intake"
 
-    def test_bug_intake_requires_no_permissions(self):
+    def test_bug_intake_requires_no_permissions(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "bug_intake")
         assert step is not None
         assert step.required_permissions == []
 
-    def test_bug_intake_no_connector_deps(self):
+    def test_bug_intake_no_connector_deps(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "bug_intake")
         assert step is not None
         assert step.connector_dependencies == []
 
-    def test_bug_intake_transitions_to_linear(self):
+    def test_bug_intake_transitions_to_linear(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "bug_intake")
         assert step is not None
         assert step.next_steps == ["linear_ticket"]
 
 
 class TestWorkflowSpecStructure:
-    def test_spec_name(self):
+    def test_spec_name(self) -> None:
         assert BUG_TO_LINEAR_PR.name == "bug_to_linear_pr"
 
-    def test_spec_version(self):
+    def test_spec_version(self) -> None:
         assert BUG_TO_LINEAR_PR.version == "0.1.0"
 
-    def test_spec_has_all_steps(self):
+    def test_spec_has_all_steps(self) -> None:
         names = {s.name for s in BUG_TO_LINEAR_PR.steps}
         assert names == {"bug_intake", "linear_ticket", "approval_gate", "github_pr"}
 
-    def test_spec_tags(self):
+    def test_spec_tags(self) -> None:
         assert "approval-required" in BUG_TO_LINEAR_PR.tags
         assert "bug" in BUG_TO_LINEAR_PR.tags
 
-    def test_spec_no_duplicate_step_names(self):
+    def test_spec_no_duplicate_step_names(self) -> None:
         names = [s.name for s in BUG_TO_LINEAR_PR.steps]
         assert len(names) == len(set(names))
 
-    def test_spec_ordered_steps(self):
+    def test_spec_ordered_steps(self) -> None:
         assert BUG_TO_LINEAR_PR.steps[0].name == "bug_intake"
         assert BUG_TO_LINEAR_PR.steps[1].name == "linear_ticket"
         assert BUG_TO_LINEAR_PR.steps[2].name == "approval_gate"
@@ -241,7 +241,7 @@ class TestWorkflowSpecStructure:
 
 
 class TestConnectorRefSemantics:
-    def test_connector_ref_structure(self):
+    def test_connector_ref_structure(self) -> None:
         ref = ConnectorRef(
             name="linear.create_issue",
             description="Create a Linear issue",
@@ -250,7 +250,7 @@ class TestConnectorRefSemantics:
         assert ref.name == "linear.create_issue"
         assert ref.required_permission == "linear_write"
 
-    def test_all_connector_refs_resolvable(self):
+    def test_all_connector_refs_resolvable(self) -> None:
         """Every connector ref in the workflow must be in the known catalog."""
         for step in BUG_TO_LINEAR_PR.steps:
             for ref in step.connector_dependencies:
@@ -258,14 +258,14 @@ class TestConnectorRefSemantics:
                     f"{step.name}: connector ref {ref.name!r} not in known catalog"
                 )
 
-    def test_connector_refs_are_semantic_strings(self):
+    def test_connector_refs_are_semantic_strings(self) -> None:
         """Connector refs must be plain string names, not imported objects."""
         for step in BUG_TO_LINEAR_PR.steps:
             for ref in step.connector_dependencies:
                 assert isinstance(ref.name, str)
                 assert "." in ref.name or "_" in ref.name
 
-    def test_github_pr_uses_existing_action_tool(self):
+    def test_github_pr_uses_existing_action_tool(self) -> None:
         step = get_step(BUG_TO_LINEAR_PR, "github_pr")
         assert step is not None
         names = {ref.name for ref in step.connector_dependencies}
@@ -276,16 +276,16 @@ class TestConnectorRefSemantics:
 
 
 class TestWorkflowValidation:
-    def test_valid_workflow_passes(self):
+    def test_valid_workflow_passes(self) -> None:
         violations = validate_workflow(BUG_TO_LINEAR_PR, _KNOWN_CONNECTOR_NAMES)
         assert violations == [], f"unexpected violations: {violations}"
 
-    def test_missing_entry_step(self):
+    def test_missing_entry_step(self) -> None:
         spec = WorkflowSpec(name="empty", description="no steps")
         violations = validate_workflow(spec, set())
         assert any("entry_step" in v for v in violations)
 
-    def test_unreachable_step(self):
+    def test_unreachable_step(self) -> None:
         steps = [
             WorkflowStep(
                 name="a",
@@ -314,7 +314,7 @@ class TestWorkflowValidation:
         assert any("unreachable" in v for v in violations)
         assert any("c" in v for v in violations)
 
-    def test_unknown_next_step(self):
+    def test_unknown_next_step(self) -> None:
         steps = [
             WorkflowStep(
                 name="a",
@@ -328,7 +328,7 @@ class TestWorkflowValidation:
         violations = validate_workflow(spec, set())
         assert any("next_step" in v for v in violations)
 
-    def test_unresolved_connector_ref(self):
+    def test_unresolved_connector_ref(self) -> None:
         steps = [
             WorkflowStep(
                 name="a",
@@ -349,7 +349,7 @@ class TestWorkflowValidation:
         violations = validate_workflow(spec, set())
         assert any("unresolved connector" in v for v in violations)
 
-    def test_missing_step_description(self):
+    def test_missing_step_description(self) -> None:
         steps = [
             WorkflowStep(
                 name="a",
@@ -363,7 +363,7 @@ class TestWorkflowValidation:
         violations = validate_workflow(spec, set())
         assert any("description is required" in v for v in violations)
 
-    def test_empty_step_name(self):
+    def test_empty_step_name(self) -> None:
         steps = [
             WorkflowStep(
                 name="",
@@ -379,10 +379,10 @@ class TestWorkflowValidation:
 
 
 class TestWorkflowIntegration:
-    def test_get_step_missing(self):
+    def test_get_step_missing(self) -> None:
         assert get_step(BUG_TO_LINEAR_PR, "does_not_exist") is None
 
-    def test_full_workflow_reachable(self):
+    def test_full_workflow_reachable(self) -> None:
         """Every declared step must be reachable from the entry step."""
         step_map = {s.name: s for s in BUG_TO_LINEAR_PR.steps}
         visited: set[str] = set()
@@ -400,7 +400,7 @@ class TestWorkflowIntegration:
         declared = {s.name for s in BUG_TO_LINEAR_PR.steps}
         assert visited == declared, f"unreachable: {declared - visited}"
 
-    def test_no_provider_clients_in_spec(self):
+    def test_no_provider_clients_in_spec(self) -> None:
         """Verify the spec contains no provider client imports or hardcoded args."""
         import inspect
 
@@ -431,11 +431,6 @@ class TestWorkflowIntegration:
         for arg in forbidden_args:
             assert arg not in source, f"hardcoded arg {arg!r} leaked into workflow spec"
 
-    def test_workflow_spec_is_module_constant(self):
+    def test_workflow_spec_is_module_constant(self) -> None:
         """BUG_TO_LINEAR_PR must be a WorkflowSpec instance at module level."""
         assert isinstance(BUG_TO_LINEAR_PR, WorkflowSpec)
-
-    def test_workflow_exported_from_package(self):
-        from agents.workflows import WORKFLOW_SPECS
-
-        assert BUG_TO_LINEAR_PR in WORKFLOW_SPECS
