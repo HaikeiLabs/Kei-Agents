@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from agents import (
     ALL_TOOL_DEFINITIONS,
     CONNECTOR_READ_TOOL_DEFINITIONS,
@@ -10,7 +12,6 @@ from agents import (
     WorkflowRegistry,
     validate_tool_definitions,
 )
-
 
 # ---------------------------------------------------------------------------
 # Built-in registry state
@@ -146,7 +147,7 @@ class TestNoOrgWorkspaceParams:
     validator for tenant identifiers) or in any WorkflowManifest input/output
     schema (enforced by WorkflowRegistry.validate())."""
 
-    ORG_WORKSPACE_HINTS = {
+    ORG_WORKSPACE_HINTS: ClassVar[set[str]] = {
         "org_id",
         "organization_id",
         "workspace_id",
