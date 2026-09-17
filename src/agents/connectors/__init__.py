@@ -14,6 +14,7 @@ from agents.connectors.drive import DRIVE_READ_TOOL_DEFINITIONS
 from agents.connectors.github import GITHUB_READ_TOOL_DEFINITIONS
 from agents.connectors.http_api import HTTP_API_READ_TOOL_DEFINITIONS
 from agents.connectors.linear import LINEAR_READ_TOOL_DEFINITIONS
+from agents.connectors.notion import NOTION_READ_TOOL_DEFINITIONS
 from agents.connectors.s3 import S3_READ_TOOL_DEFINITIONS
 from agents.tool_definitions import ToolDefinition
 
@@ -23,6 +24,7 @@ CONNECTOR_READ_TOOL_DEFINITIONS: list[ToolDefinition] = [
     *DRIVE_READ_TOOL_DEFINITIONS,
     *S3_READ_TOOL_DEFINITIONS,
     *HTTP_API_READ_TOOL_DEFINITIONS,
+    *NOTION_READ_TOOL_DEFINITIONS,
 ]
 
 __all__ = [
@@ -31,5 +33,6 @@ __all__ = [
     "GITHUB_READ_TOOL_DEFINITIONS",
     "HTTP_API_READ_TOOL_DEFINITIONS",
     "LINEAR_READ_TOOL_DEFINITIONS",
+    "NOTION_READ_TOOL_DEFINITIONS",
     "S3_READ_TOOL_DEFINITIONS",
 ]

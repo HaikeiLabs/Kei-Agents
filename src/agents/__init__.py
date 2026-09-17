@@ -3,16 +3,22 @@
 This package provides:
 - Tool definitions with multi-model format support (OpenAI, Anthropic, Ollama)
 - Provider-neutral read schemas for governed connectors (GitHub, Linear,
-  Google Drive/Docs, S3, http_api/CRM)
+  Google Drive/Docs, S3, http_api/CRM, Notion)
 - CRM tools for lead management (mock adapter)
 - GitHub tools for issue/PR management (with governance)
 - Permission-based access control
+- Harness-neutral workflow registry for discovering workflows by tool or
+  connector dependency
 
 Install: pip install kei-agents
 
 Usage:
     from agents import TOOL_DEFINITIONS, render_tools, ModelFormat
     tools = render_tools(TOOL_DEFINITIONS, ModelFormat.OPENAI)
+
+    from agents import WorkflowRegistry
+    registry = WorkflowRegistry.get_default()
+    workflows = registry.discover_by_tool("github.get_repository")
 """
 
 from agents.crm import (
@@ -65,7 +71,16 @@ from agents.connectors import (
     GITHUB_READ_TOOL_DEFINITIONS,
     HTTP_API_READ_TOOL_DEFINITIONS,
     LINEAR_READ_TOOL_DEFINITIONS,
+    NOTION_READ_TOOL_DEFINITIONS,
     S3_READ_TOOL_DEFINITIONS,
+)
+
+# Imported after connectors so the workflow registry's module-level
+# _register_builtin_workflows() sees the full CONNECTOR_READ_TOOL_DEFINITIONS
+# list.
+from agents.workflow_registry import (
+    WorkflowManifest,
+    WorkflowRegistry,
 )
 
 __all__ = [
@@ -75,6 +90,7 @@ __all__ = [
     "GITHUB_READ_TOOL_DEFINITIONS",
     "HTTP_API_READ_TOOL_DEFINITIONS",
     "LINEAR_READ_TOOL_DEFINITIONS",
+    "NOTION_READ_TOOL_DEFINITIONS",
     "S3_READ_TOOL_DEFINITIONS",
     "TOOL_DEFINITIONS",
     "AuthorizationResult",
@@ -93,6 +109,8 @@ __all__ = [
     "ToolCategory",
     "ToolDefinition",
     "ToolParameter",
+    "WorkflowManifest",
+    "WorkflowRegistry",
     "check_tool_access",
     "create_user_context",
     "detect_model_format",
