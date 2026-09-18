@@ -188,43 +188,191 @@ class FinanceWorkflowSpec:
 
 _MUTATION_PAYLOAD_TYPES = (CRMUpdate, DriveArchive)
 
+# Steps whose execution leaves the governed boundary: LinearTask puts text in a
+# ticket, Notify sends it to a mailbox or a chat channel. They are named here
+# so a harness can classify a step, and so :func:`egress_steps` can report them
+# to whatever presents a workflow for review.
+#
+# They are deliberately NOT gated by this function. Whether a given subject may
+# cause a given egress is an authorization question, and per ADR-011 the live
+# allow/deny decision belongs to ABAC and the tenant-side proxy PEP, not to a
+# static property of the spec. Encoding it here would recreate the dormant
+# connector-side policy the governance pivot moved out: unenforceable, and
+# silently divergent from the policy that actually runs.
+_EGRESS_PAYLOAD_TYPES = (LinearTask, Notify)
+
+_READ_PAYLOAD_TYPES = (DriveRead, CRMLookup)
+
 
 def _is_mutation(payload: StepPayload) -> bool:
     return isinstance(payload, _MUTATION_PAYLOAD_TYPES)
 
 
+def _is_egress(payload: StepPayload) -> bool:
+    return isinstance(payload, _EGRESS_PAYLOAD_TYPES)
+
+
 def _is_read(payload: StepPayload) -> bool:
-    return isinstance(payload, (DriveRead, CRMLookup))
+    return isinstance(payload, _READ_PAYLOAD_TYPES)
+
+
+def egress_steps(spec: FinanceWorkflowSpec) -> list[FinanceWorkflowStep]:
+    """Return the steps whose execution leaves the governed boundary.
+
+    This is a classification helper, not a gate: it tells a harness which
+    steps to submit to ABAC as egress-class requests, and lets a reviewer see
+    a workflow's egress surface at a glance. The decision itself stays with
+    the policy decision point.
+    """
+    return [step for step in spec.steps if _is_egress(step.payload)]
+
+
+def _find_cycle(spec: FinanceWorkflowSpec) -> list[str] | None:
+    """Return one dependency cycle as a list of step ids, or None if acyclic.
+
+    A spec is a DAG by contract. Nothing enforced that, so a cycle would reach
+    a harness interpreter and hang it rather than being rejected here.
+    """
+    dependencies = {
+        step.step_id: [d for d in step.depends_on if d != step.step_id]
+        for step in spec.steps
+    }
+    # Self-dependency is a cycle of length one; report it directly since the
+    # traversal below skips it to keep the walk simple.
+    for step in spec.steps:
+        if step.step_id in step.depends_on:
+            return [step.step_id, step.step_id]
+
+    WHITE, GREY, BLACK = 0, 1, 2
+    colour = dict.fromkeys(dependencies, WHITE)
+
+    def walk(node: str, path: list[str]) -> list[str] | None:
+        colour[node] = GREY
+        path.append(node)
+        for dep in dependencies.get(node, ()):
+            if dep not in colour:
+                continue  # unknown dep: reported separately as a dangling edge
+            if colour[dep] == GREY:
+                return path[path.index(dep) :] + [dep]
+            if colour[dep] == WHITE:
+                found = walk(dep, path)
+                if found is not None:
+                    return found
+        path.pop()
+        colour[node] = BLACK
+        return None
+
+    for node in dependencies:
+        if colour[node] == WHITE:
+            cycle = walk(node, [])
+            if cycle is not None:
+                return cycle
+    return None
+
+
+def _gated_by_approval(
+    step: FinanceWorkflowStep, by_id: dict[str, FinanceWorkflowStep]
+) -> bool:
+    """Report whether an ApprovalGate is reachable from *step*'s dependencies.
+
+    The gate may be any ancestor, not only a direct dependency. Requiring a
+    direct edge would mean a step that legitimately depends on an intermediate
+    read could not be gated without also naming the gate, which authors get
+    wrong in the direction of removing the intermediate step rather than adding
+    the edge. Reachability keeps the guarantee -- the gate is still upstream of
+    the step, so it still blocks -- while allowing the natural shape.
+    """
+    seen: set[str] = set()
+    frontier = list(step.depends_on)
+    while frontier:
+        current = frontier.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        dependency = by_id.get(current)
+        if dependency is None:
+            continue
+        if isinstance(dependency.payload, ApprovalGate):
+            return True
+        frontier.extend(dependency.depends_on)
+    return False
+
+
+def _depends_on_read(
+    step: FinanceWorkflowStep, by_id: dict[str, FinanceWorkflowStep]
+) -> bool:
+    """Report whether a read step is reachable from *step*'s dependencies."""
+    seen: set[str] = set()
+    frontier = list(step.depends_on)
+    while frontier:
+        current = frontier.pop()
+        if current in seen:
+            continue
+        seen.add(current)
+        dependency = by_id.get(current)
+        if dependency is None:
+            continue
+        if _is_read(dependency.payload):
+            return True
+        frontier.extend(dependency.depends_on)
+    return False
 
 
 def validate_read_first(spec: FinanceWorkflowSpec) -> list[str]:
-    """Validate that every mutation has a read dependency and an approval gate.
+    """Validate a finance workflow's read-first and approval invariants.
+
+    Checks, in order: the step graph is well formed (unique ids, resolvable
+    dependencies, no cycles); every mutation depends on a read and is gated by
+    an approval; and approval gates carry the approval permission.
+
+    Dependency checks are by reachability, so a gate or read may be any
+    ancestor rather than a direct dependency.
+
+    This validates the *structure* of a spec -- properties that are true of
+    the graph itself, independent of who runs it. It is not an authorization
+    check. Whether a particular subject may perform a step, and whether an
+    egress needs an approval in a given tenant, is decided at invocation time
+    by ABAC and the tenant-side proxy PEP (ADR-011). A spec that passes here
+    is well formed, not permitted.
 
     Returns a list of violations; an empty list means the spec is valid.
     """
     violations: list[str] = []
-    step_ids = {step.step_id for step in spec.steps}
+    by_id: dict[str, FinanceWorkflowStep] = {}
+
+    for step in spec.steps:
+        if step.step_id in by_id:
+            violations.append(f"{step.step_id}: duplicate step_id")
+        by_id[step.step_id] = step
 
     for step in spec.steps:
         for dep in step.depends_on:
-            if dep not in step_ids:
+            if dep not in by_id:
                 violations.append(
                     f"{step.step_id}: depends_on {dep!r} not found in steps"
                 )
 
+    cycle = _find_cycle(spec)
+    if cycle is not None:
+        violations.append(f"dependency cycle: {' -> '.join(cycle)}")
+        # Reachability checks below assume an acyclic graph is meaningful to
+        # traverse. The traversals terminate regardless, but reporting
+        # gate/read findings from inside a cycle would be noise on top of the
+        # real defect, so stop here.
+        return violations
+
+    for step in spec.steps:
         if _is_mutation(step.payload):
             if step.permission not in ("finance_write", "finance_approve"):
                 violations.append(
                     f"{step.step_id}: mutation step requires "
                     f"finance_write or finance_approve permission, got {step.permission!r}"
                 )
-
-            deps = [s for s in spec.steps if s.step_id in step.depends_on]
-            if not any(_is_read(d.payload) for d in deps):
+            if not _depends_on_read(step, by_id):
                 violations.append(
                     f"{step.step_id}: mutation step must depend on a read step"
                 )
-            if not any(isinstance(d.payload, ApprovalGate) for d in deps):
+            if not _gated_by_approval(step, by_id):
                 violations.append(
                     f"{step.step_id}: mutation step must depend on an approval gate"
                 )
@@ -523,6 +671,7 @@ __all__ = [
     "LinearTask",
     "Notify",
     "StepPayload",
+    "egress_steps",
     "expense_report_workflow",
     "invoice_processing_workflow",
     "validate_read_first",
