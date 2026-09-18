@@ -16,6 +16,7 @@ from agents.workflows.finance import (
     LinearTask,
     Notify,
     StepPayload,
+    egress_steps,
     expense_report_workflow,
     invoice_processing_workflow,
     validate_read_first,
@@ -379,3 +380,182 @@ class TestWorkflowTags:
         assert "finance" in spec.tags
         assert "vendor" in spec.tags
         assert "onboarding" in spec.tags
+
+
+def _read(step_id: str, depends_on: list[str] | None = None) -> FinanceWorkflowStep:
+    return FinanceWorkflowStep(
+        step_id=step_id,
+        description="read",
+        payload=DriveRead(entity=FinanceEntity.INVOICE),
+        depends_on=depends_on or [],
+    )
+
+
+def _gate(step_id: str, depends_on: list[str] | None = None) -> FinanceWorkflowStep:
+    return FinanceWorkflowStep(
+        step_id=step_id,
+        description="gate",
+        payload=ApprovalGate(),
+        permission="finance_approve",
+        depends_on=depends_on or [],
+    )
+
+
+def _mutation(step_id: str, depends_on: list[str]) -> FinanceWorkflowStep:
+    return FinanceWorkflowStep(
+        step_id=step_id,
+        description="mutate",
+        payload=CRMUpdate(entity_type="customer", record_id="c-1", updates={}),
+        permission="finance_write",
+        depends_on=depends_on,
+    )
+
+
+def _spec(steps: list[FinanceWorkflowStep]) -> FinanceWorkflowSpec:
+    return FinanceWorkflowSpec(
+        workflow_id="test.spec", name="Test", description="Test", steps=steps
+    )
+
+
+class TestCycleDetection:
+    """A spec is a DAG by contract; a cycle must be rejected here rather than
+    reaching a harness interpreter that would not terminate."""
+
+    def test_two_step_cycle_is_reported(self):
+        spec = _spec([_read("a", ["b"]), _read("b", ["a"])])
+        violations = validate_read_first(spec)
+        assert any("dependency cycle" in v for v in violations)
+
+    def test_self_dependency_is_reported(self):
+        spec = _spec([_read("a", ["a"])])
+        violations = validate_read_first(spec)
+        assert any("dependency cycle" in v for v in violations)
+
+    def test_longer_cycle_is_reported(self):
+        spec = _spec([_read("a", ["c"]), _read("b", ["a"]), _read("c", ["b"])])
+        violations = validate_read_first(spec)
+        assert any("dependency cycle" in v for v in violations)
+
+    def test_cycle_message_names_the_steps(self):
+        spec = _spec([_read("a", ["b"]), _read("b", ["a"])])
+        cycle = next(
+            v for v in validate_read_first(spec) if v.startswith("dependency cycle")
+        )
+        assert "a" in cycle and "b" in cycle
+
+    def test_diamond_is_not_a_cycle(self):
+        # a -> b, a -> c, b -> d, c -> d shares ancestors without cycling.
+        spec = _spec(
+            [
+                _read("a"),
+                _read("b", ["a"]),
+                _read("c", ["a"]),
+                _read("d", ["b", "c"]),
+            ]
+        )
+        assert validate_read_first(spec) == []
+
+    def test_canonical_workflows_are_acyclic(self):
+        for factory in (
+            invoice_processing_workflow,
+            expense_report_workflow,
+            vendor_onboarding_workflow,
+        ):
+            assert validate_read_first(factory()) == []
+
+
+class TestApprovalReachability:
+    """A gate may be any ancestor of a mutation, not only a direct dependency."""
+
+    def test_transitive_gate_satisfies_the_mutation(self):
+        spec = _spec(
+            [
+                _read("read"),
+                _gate("gate", ["read"]),
+                _read("enrich", ["gate"]),
+                _mutation("update", ["enrich"]),
+            ]
+        )
+        assert validate_read_first(spec) == []
+
+    def test_direct_gate_still_satisfies_the_mutation(self):
+        spec = _spec(
+            [
+                _read("read"),
+                _gate("gate", ["read"]),
+                _mutation("update", ["gate", "read"]),
+            ]
+        )
+        assert validate_read_first(spec) == []
+
+    def test_mutation_with_no_gate_anywhere_upstream_is_flagged(self):
+        spec = _spec([_read("read"), _mutation("update", ["read"])])
+        violations = validate_read_first(spec)
+        assert any("approval gate" in v for v in violations)
+
+    def test_gate_on_a_parallel_branch_does_not_count(self):
+        # The gate is not an ancestor of the mutation, so it cannot block it.
+        spec = _spec(
+            [
+                _read("read"),
+                _gate("gate", ["read"]),
+                _mutation("update", ["read"]),
+            ]
+        )
+        violations = validate_read_first(spec)
+        assert any("approval gate" in v for v in violations)
+
+    def test_transitive_read_satisfies_the_read_requirement(self):
+        spec = _spec(
+            [
+                _read("read"),
+                _gate("gate", ["read"]),
+                _mutation("update", ["gate"]),
+            ]
+        )
+        assert validate_read_first(spec) == []
+
+
+class TestGraphWellFormedness:
+    def test_duplicate_step_id_is_reported(self):
+        spec = _spec([_read("dup"), _read("dup")])
+        assert any("duplicate step_id" in v for v in validate_read_first(spec))
+
+    def test_dangling_dependency_is_reported(self):
+        spec = _spec([_read("a", ["missing"])])
+        assert any("not found in steps" in v for v in validate_read_first(spec))
+
+
+class TestEgressClassification:
+    """Egress steps are classified for the harness to submit to ABAC; the
+    validator deliberately does not decide whether they are permitted."""
+
+    def test_egress_steps_lists_task_and_notify(self):
+        ids = [s.step_id for s in egress_steps(invoice_processing_workflow())]
+        assert ids == ["create_review_task", "notify_customer"]
+
+    def test_egress_is_not_a_validation_violation(self):
+        # An ungated Notify is well formed. Whether this subject may send it is
+        # an ABAC decision made at invocation time, not a property of the spec.
+        spec = _spec(
+            [
+                _read("read"),
+                FinanceWorkflowStep(
+                    step_id="leak",
+                    description="notify",
+                    payload=Notify(
+                        channel="email", recipient="a@example.test", message="balance"
+                    ),
+                    depends_on=["read"],
+                ),
+            ]
+        )
+        assert validate_read_first(spec) == []
+
+    def test_every_canonical_workflow_exposes_its_egress_surface(self):
+        for factory in (
+            invoice_processing_workflow,
+            expense_report_workflow,
+            vendor_onboarding_workflow,
+        ):
+            assert egress_steps(factory()), "workflow should declare egress steps"
