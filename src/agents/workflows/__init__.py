@@ -6,6 +6,8 @@ Each step captures domain intent only; the harness resolves bindings,
 enforces policy, and invokes provider adapters.
 """
 
+from __future__ import annotations
+
 from agents.workflows.finance import (
     FINANCE_WORKFLOW_SPECS,
     ApprovalGate,
@@ -26,9 +28,26 @@ from agents.workflows.finance import (
     validate_read_first,
     vendor_onboarding_workflow,
 )
+from agents.workflows.github_pr_review import (
+    PR_REVIEW_TOOL_DEPENDENCIES,
+    PRReviewFinding,
+    PRReviewFindingSeverity,
+    PRReviewInput,
+    PRReviewOutput,
+    PRReviewStep,
+    PRReviewWorkflowSpec,
+    ReviewAction,
+    ReviewActionKind,
+)
+
+WORKFLOW_DEFINITIONS: list[PRReviewWorkflowSpec] = [
+    PRReviewWorkflowSpec(),
+]
 
 __all__ = [
     "FINANCE_WORKFLOW_SPECS",
+    "PR_REVIEW_TOOL_DEPENDENCIES",
+    "WORKFLOW_DEFINITIONS",
     "ApprovalGate",
     "CRMLookup",
     "CRMUpdate",
@@ -41,6 +60,14 @@ __all__ = [
     "FinanceWorkflowStep",
     "LinearTask",
     "Notify",
+    "PRReviewFinding",
+    "PRReviewFindingSeverity",
+    "PRReviewInput",
+    "PRReviewOutput",
+    "PRReviewStep",
+    "PRReviewWorkflowSpec",
+    "ReviewAction",
+    "ReviewActionKind",
     "StepPayload",
     "expense_report_workflow",
     "invoice_processing_workflow",

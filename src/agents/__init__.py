@@ -9,6 +9,7 @@ This package provides:
 - Permission-based access control
 - Harness-neutral workflow registry for discovering workflows by tool or
   connector dependency
+- Harness-neutral composable workflow definitions
 
 Install: pip install kei-agents
 
@@ -83,6 +84,20 @@ from agents.workflow_registry import (
     WorkflowRegistry,
 )
 
+# Workflow definitions (imported after core types are available).
+from agents.workflows import (
+    PR_REVIEW_TOOL_DEPENDENCIES,
+    WORKFLOW_DEFINITIONS,
+    PRReviewFinding,
+    PRReviewFindingSeverity,
+    PRReviewInput,
+    PRReviewOutput,
+    PRReviewStep,
+    PRReviewWorkflowSpec,
+    ReviewAction,
+    ReviewActionKind,
+)
+
 __all__ = [
     "ALL_TOOL_DEFINITIONS",
     "CONNECTOR_READ_TOOL_DEFINITIONS",
@@ -91,8 +106,10 @@ __all__ = [
     "HTTP_API_READ_TOOL_DEFINITIONS",
     "LINEAR_READ_TOOL_DEFINITIONS",
     "NOTION_READ_TOOL_DEFINITIONS",
+    "PR_REVIEW_TOOL_DEPENDENCIES",
     "S3_READ_TOOL_DEFINITIONS",
     "TOOL_DEFINITIONS",
+    "WORKFLOW_DEFINITIONS",
     "AuthorizationResult",
     "CRMAdapter",
     "GovernanceConfig",
@@ -101,10 +118,18 @@ __all__ = [
     "LeadStatus",
     "MockGitHubAdapter",
     "ModelFormat",
+    "PRReviewFinding",
+    "PRReviewFindingSeverity",
+    "PRReviewInput",
+    "PRReviewOutput",
+    "PRReviewStep",
+    "PRReviewWorkflowSpec",
     "Permission",
     "PermissionContext",
     "PolicyDecision",
     "PolicyEngine",
+    "ReviewAction",
+    "ReviewActionKind",
     "ToolBinding",
     "ToolCategory",
     "ToolDefinition",
