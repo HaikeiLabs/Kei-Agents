@@ -5,7 +5,7 @@
 Please report security vulnerabilities to the Kei team by opening a private
 security advisory at:
 
-- https://github.com/HaikeiLabs/Kei-Agents/security/advisories
+- https://github.com/HaikeiLabs/kei-agents/security/advisories
 
 Alternatively, email <team@kei.ai>. Do not open public issues for security
 vulnerabilities.
